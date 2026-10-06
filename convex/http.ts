@@ -53,4 +53,36 @@ http.route({
   }),
 });
 
+// Test endpoint for probing whether the request-size behavior differs
+// for a less-streamable parsing path: `req.formData()` must buffer and
+// parse multipart boundaries, vs. `req.blob()` which hands back raw bytes.
+http.route({
+  path: "/upload-form",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    try {
+      const form = await req.formData();
+      const file = form.get("file");
+      if (!(file instanceof Blob)) {
+        return new Response(JSON.stringify({ error: "no file field" }), {
+          status: 400,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      const storageId = await ctx.storage.store(file);
+      console.log("Stored form file", storageId, "size:", file.size);
+      return new Response(
+        JSON.stringify({ storageId, size: file.size }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    } catch (error) {
+      console.error("Form upload failed:", error);
+      return new Response(
+        JSON.stringify({ error: (error as Error).message }),
+        { status: 500, headers: { "content-type": "application/json" } },
+      );
+    }
+  }),
+});
+
 export default http;
