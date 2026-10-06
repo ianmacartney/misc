@@ -1,5 +1,6 @@
 import { httpRouter } from "convex/server";
-import { httpAction } from "./_generated/server";
+import { httpAction, internalQuery, query } from "./_generated/server";
+import { v } from "convex/values";
 
 const http = httpRouter();
 
@@ -34,6 +35,21 @@ http.route({
         { status: 500, headers: { "content-type": "application/json" } },
       );
     }
+  }),
+});
+
+// Test endpoint for probing the HTTP action *response* size limit
+// (documented at 20 MiB): echoes the uploaded bytes straight back out.
+http.route({
+  path: "/echo",
+  method: "POST",
+  handler: httpAction(async (_ctx, req) => {
+    const blob = await req.blob();
+    console.log("Echoing back", blob.size, "bytes");
+    return new Response(blob, {
+      status: 200,
+      headers: { "content-type": "application/octet-stream" },
+    });
   }),
 });
 
